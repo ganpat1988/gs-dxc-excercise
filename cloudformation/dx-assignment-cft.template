@@ -1,0 +1,124 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Copy SSM paramater and save as file in s3 bucket ",
+
+  "Parameters": {
+    "S3Bucket" : {
+      "Description" : "The name of the bucket that contains your lambda code",
+      "Type" : "String",
+      "Default": "dx-excercise"
+    },
+    "S3Key" : {
+      "Description" : "Zip file",
+      "Type" : "String",
+      "Default" : "lambdacode/excercise-lambda.zip"
+    }
+  },
+
+  "Resources" : {
+    "DXUserCrendentialParameter": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": "dx-exercise-username",
+        "Type": "String",
+        "Value": "{Name: UserName, Value: JohnDoe}",
+        "Tier": "Standard",
+        "Description": "Parameter for username",
+        "Tags": {
+          "Environment": "dev"
+        }
+      }
+    },
+    "DXCopySSMToS3Bucket": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "dx-exercise-assignment",
+        "Code": {
+          "S3Bucket": {"Ref": "S3Bucket"},
+          "S3Key": {"Ref": "S3Key"}
+        },
+        "Handler": "excercise-lambda.handler",
+        "Role": { "Fn::GetAtt" : ["DXCopySSMToS3BucketRole", "Arn"] },
+        "Runtime": "python3.9",
+        "Timeout": "30",
+        "Tags": [{
+          "Key": "Environment", "Value": "dev"
+        }]
+      }
+    },
+
+    "DXCopySSMToS3BucketRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+            "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [
+                                "lambda.amazonaws.com"
+                            ]
+                        },
+                        "Action": [
+                            "sts:AssumeRole"
+                        ]
+                    }
+                ]
+            },
+            "Path": "/",
+            "Policies": [
+                {
+                    "PolicyName": "root",
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "logs:CreateLogGroup",
+                                ],
+                                "Resource": {"Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"}
+                            },
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "logs:CreateLogStream",
+                                    "logs:PutLogEvents"
+                                ],
+                                "Resource": {"Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/dx-exercise-assignment:*"}
+                            },
+                            {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "s3:PutObject",
+                                    "s3:DeleteObject",
+                                ],
+                                "Resource": {"Fn::Sub": "arn:aws:s3:::dx-excercise/*"}
+                            },
+                                                        {
+                                "Effect": "Allow",
+                                "Action": [
+                                    "ssm:GetParameter",
+                                ],
+                                "Resource": {"Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/dx-exercise-username"}
+                            }
+                        ]
+                    }
+                }
+            ]
+
+        }
+    },
+
+    "DXCopySSMLambdaCustomResource": {
+      "Type": "Custom::DXCopySSMLambdaCustomResource",
+      "Properties": {
+        "ServiceToken": { "Fn::GetAtt" : ["DXCopySSMToS3Bucket", "Arn"] },
+        "Region": { "Ref": "AWS::Region" },
+      }
+    },
+
+  }
+}
