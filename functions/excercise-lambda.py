@@ -32,11 +32,10 @@ def handler(event, context):
             print('deleting resource')
             s3_client.delete_object(Bucket=bucket, Key=file_key)
 
-        responseData['Data'] = 'responseValue'
-        send(event, context, cfnresponse.SUCCESS, responseData)
+            responseData['Data'] = 'responseValue'
+            send(event, context, cfnresponse.SUCCESS, responseData)
     except:
         print('error in lambda function')
-        responseData['Data'] = 'error'
         send(event, context, cfnresponse.FAILED, responseData)
 
 
